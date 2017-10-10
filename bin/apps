@@ -1,0 +1,81 @@
+#!/bin/bash
+
+shopt -s nullglob
+
+check_file_validate()
+{
+    local check_file="$1"
+    local contents=$(grep -v -e "^#" -e "^$" "$check_file")
+
+    [[ "$contents" ]] || {
+        log_error "$check_file file has no any contents and please check it ..."
+        return 1
+    }
+}
+
+check_update_repo()
+{
+    log_info "checking update repo whether enable or not"
+
+    if yum repolist enabled | grep -q "Updates"; then
+        log_warn "disable Updates repo is better in some way"
+    fi
+}
+
+yum_install()
+{
+    if grep -i -q "^ID.*centos" /etc/os-release; then
+        log_info "installing epel-release and centos-release-scl ..."
+        yum install -y epel-release.noarch centos-release-scl.noarch > /dev/null || {
+            log_error "cannot install epel-release and centos-release-scl ..."
+            return 1
+        }
+    fi
+    log_info "installing Development Tools component ..."
+    yum groups install "Development Tools" -y > /dev/null || {
+        log_error "cannot installing Development Tools component ..."
+        return 1
+    }
+
+    local pkgs_name_file="${OS_CONFIG_SRC}/config/pkgs/pkgs_name.ini"
+    local line_content
+    line_content=$(get_value_from_inifile "$pkgs_name_file" "rpm_names" | sed '/^$/d') || return
+
+    while read -r pkg_name; do
+        log_info "installing rpm $pkg_name ..."
+        yum install -y --nogpgcheck "$pkg_name" > /dev/null || {
+            log_error "cannot to install $pkg_name ..."
+            return 1
+        }
+    done <<< "$line_content"
+}
+
+enable_service()
+{
+    local pkgs_name_file="${OS_CONFIG_SRC}/config/pkgs/pkgs_name.ini"
+    local line_content
+    line_content=$(get_value_from_inifile "$pkgs_name_file" "service_names" | sed '/^$/d') || return
+
+    while read -r service_name; do
+        enable_start_service "$service_name" || log_warn "enable start $service_name failed, see 'systemctl status $service_name' command"
+    done <<< "$line_content"
+}
+
+clean_tmp()
+{
+    rm -rf "$TEMP_DIRS"
+}
+
+[[ $(id -u) -eq 0 ]] || {
+    log_error "please use root privilege to run it again."
+    exit 1
+}
+
+trap "clean_tmp; exit 1" EXIT INT
+TEMP_DIRS=$(mktemp -d -p "$OS_CONFIG_SRC")
+
+check_update_repo
+yum_install || exit
+enable_service || exit
+
+exit 0

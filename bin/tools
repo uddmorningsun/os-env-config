@@ -1,0 +1,12 @@
+#!/bin/bash
+
+log_info "please download below latest followings:
+
+* https://linux.wps.com
+* https://github.com/jarun/nnn/releases
+* https://github.com/tsl0922/ttyd/releases
+* https://github.com/flameshot-org/flameshot/releases
+* https://github.com/howtowhale/dvm/releases
+
+"
+exit 0

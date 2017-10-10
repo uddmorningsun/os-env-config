@@ -1,0 +1,11 @@
+FROM centos:7
+
+RUN yum install -y epel-release && yum install -y sudo pssh openssh-server xorg-x11-xauth dbus libcanberra-gtk3 libcanberra-gtk2 \
+    PackageKit-gtk3-module wqy-zenhei-fonts && dbus-uuidgen > /var/lib/dbus/machine-id && echo "root:rootroot" | chpasswd
+# http://www.ducea.com/2006/06/18/linux-tips-password-usage-in-sudo-passwd-nopasswd/
+RUN ssh-keygen -A && sed -i "/#X11UseLocalhost/c X11UseLocalhost no" /etc/ssh/sshd_config \
+    && echo "Defaults   !authenticate" >> /etc/sudoers && echo "ALL     ALL=(ALL)       NOPASSWD:ALL" >> /etc/sudoers
+
+EXPOSE 22
+
+CMD ["/usr/bin/sudo", "/usr/sbin/sshd", "-D"]
